@@ -91,8 +91,9 @@ class Instances {
         return instanceId
     }
 
-    static String[] getInstanceIds(String nameTag) {
+    static String[] getInstanceIds(nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
+
         sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true)
         def result = readFile 'instances.out'
         sh """rm instances.out"""
