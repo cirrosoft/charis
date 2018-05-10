@@ -8,7 +8,8 @@ node {
             commitHashFull : "",
             dockerName : "",
             dockerTag : "",
-            dockerTagLatest : ""
+            dockerTagLatest : "",
+            awsCredential : "deployment"
     ]
     stage("Checkout") {
         echo "Checkout Code Repository"
@@ -46,31 +47,31 @@ node {
                     "sudo service docker start",
                     "sudo usermod -a -G docker ec2-user"
             ]
-            Remote.executeRemoteCommands("deployment", ip, commands)
+            Remote.executeRemoteCommands(build.awsCredential, ip, commands)
         }
     }
 
     stage("Deploy") {
         for (id in instanceIds) {
             def ip = Instances.getInstancePublicIP(id)
-            Remote.executeRemoteCommands("deployment", ip, ["rm -rf latest-image.tar"])
-            Remote.scp("deployment", ip, "latest-image.tar", "latest-image.tar")
+            Remote.executeRemoteCommands(build.awsCredential, ip, ["rm -rf latest-image.tar"])
+            Remote.scp(build.awsCredential, ip, "latest-image.tar", "latest-image.tar")
             // Cleanup old containers
-            def runningContainers = Remote.executeRemoteCommands("deployment", ip, ["docker ps -a -q --filter=\"ancestor=${build.dockerTagLatest}\""])
+            def runningContainers = Remote.executeRemoteCommands(build.awsCredential, ip, ["docker ps -a -q --filter=\"ancestor=${build.dockerTagLatest}\""])
             echo "RUNNING CONTAINERS"
             echo runningContainers
             runningContainers?.trim()?.eachLine {
-                Remote.executeRemoteCommands("deployment", ip, ["docker stop ${it}"])
-                Remote.executeRemoteCommands("deployment", ip, ["docker rm ${it}"])
+                Remote.executeRemoteCommands(build.awsCredential, ip, ["docker stop ${it}"])
+                Remote.executeRemoteCommands(build.awsCredential, ip, ["docker rm ${it}"])
             }
             // Deploy new container
             def commands = [
                     "docker image load -i latest-image.tar",
                     "sudo docker run -d -p \"80:8080\" ${build.dockerTagLatest}"
             ]
-            Remote.executeRemoteCommands("deployment", ip, commands)
+            Remote.executeRemoteCommands(build.awsCredential, ip, commands)
         }
-        echo "Deploying Service"
+        echo "Service Deployed"
     }
 }
 
@@ -99,7 +100,7 @@ class Instances {
         def match = (result =~ regex)
         def instances = []
         while (match.find()) {
-            instanceId = match.group(1)
+            def instanceId = match.group(1)
             instances.add(instanceId)
         }
         return instances
