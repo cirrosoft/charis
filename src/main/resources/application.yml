@@ -1,0 +1,8 @@
+server:
+  port: 8080
+
+
+spring:
+  mustache:
+    suffix: .mustache
+  jackson.date-format: mm-dd-yyyy HH:mm:ss

@@ -1,0 +1,68 @@
+body {
+    background-color: rgb(235, 235, 235);
+    /* Background pattern from Subtle Patterns */
+    background-image: url("/image/ignasi_pattern.png");
+}
+
+
+.navbar {
+    margin-top: 20px;
+}
+
+.footer {
+  position: absolute;
+  bottom: 20px;
+  width: 100%;
+  height: 60px; /* Set the fixed height of the footer here */
+  line-height: 60px; /* Vertically center the text there */
+}
+
+.container {
+    margin-top: 20px;
+    padding: 40px;
+}
+
+.footer div {
+    margin-top: 0px;
+    padding: 0px;
+}
+
+.btn-group {
+    padding-left: 8px;
+}
+
+.btn-primary {
+    background: rgb(90, 136, 106);
+    background-color: rgb(90, 136, 106);
+    color: #ffffff;
+    border-color: rgb(124, 139, 125);
+}
+
+.btn-primary.hover, .btn-primary:hover {
+    background: rgb(124, 139, 125);
+    background-color: rgb(124, 139, 125);
+    border-color: rgb(90, 136, 106);
+}
+
+.btn-primary.active, .btn-primary:active {
+    background: rgb(124, 139, 125) !important;
+    background-color: rgb(124, 139, 125) !important;
+    border-color: rgb(90, 136, 106) !important;
+}
+
+.btn-primary.focus, .btn-primary:focus {
+    background: rgb(124, 139, 125) !important;
+    background-color: rgb(124, 139, 125) !important;
+    border-color: rgb(90, 136, 106) !important;
+    box-shadow: 0 0 0 0px rgba(0, 0, 0, 1.0) !important;
+}
+
+.btn-primary.active, .btn-primary:active, .show>.btn-primary.dropdown-toggle {
+    background: rgb(124, 139, 125) !important;
+    background-color: rgb(124, 139, 125) !important;
+    border-color: rgb(90, 136, 106) !important;
+    box-shadow: 0 0 0 0px rgba(0, 0, 0, 1.0) !important;
+}
+
+
+
