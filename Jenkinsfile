@@ -84,6 +84,7 @@ def getPreviousBlueGreen() {
     def hudson = hudson.model.Hudson.instance
     def project = null
     hudson.getItems(org.jenkinsci.plugins.workflow.job.WorkflowJob).each {proj ->
+        echo proj.displayName
         if (proj?.displayName?.equals(JOB_NAME)) {
             project = proj
         }
