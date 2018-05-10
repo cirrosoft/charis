@@ -112,7 +112,7 @@ class Instances {
     public static def steps
     static String createInstance(String nameTag, String type, String ami, String securityGroup, String keyPairName) {
         nameTag = nameTag.replaceAll(' ', '-')
-        steps.sh(script: """aws ec2 run-instances --image-id ${ami} --count 1 --instance-type ${type} --key-name ${keyPairName} --security-groups ${securityGroup} --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] > instance.out > instance.out""", returnStdout: true).trim()
+        steps.sh(script: """aws ec2 run-instances --image-id ${ami} --count 1 --instance-type ${type} --key-name ${keyPairName} --security-groups ${securityGroup} --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] | tee instance.out""", returnStdout: true).trim()
         def result = steps.readFile 'instance.out'
         steps.sh """rm instance.out"""
         def regex = /InstanceId.*?(i-.*?)",/
@@ -125,7 +125,7 @@ class Instances {
     static String[] getInstanceIds(nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
 
-        steps.sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true)
+        steps.sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' | tee instances.out""", returnStdout: true)
         def result = steps.readFile 'instances.out'
         steps.sh """rm instances.out"""
         def regex = /InstanceId.*?(i-.*?)",/
@@ -184,7 +184,7 @@ class Remote {
         steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             for (command in commands) {
                 steps.sh """
-            ssh -i ${steps.SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${steps.SSH_USERNAME}@${address} ${command} > ssh-output.out
+            ssh -i ${steps.SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${steps.SSH_USERNAME}@${address} ${command} | tee ssh-output.out
             """
                 def result = steps.readFile 'ssh-output.out'
                 result = result?.trim();
