@@ -36,7 +36,7 @@ node {
         sh(script: "docker build -t ${build.dockerTag} -t ${build.dockerTagLatest} .")
         sh(script: "docker image save ${build.dockerTagLatest} > latest-image.tar")
         //sh(script: "docker system prune -fa")
-        sh(script: "docker rmi `docker images -a -q --filter=reference=\"${build.dockerName}:*\"`")
+        sh(script: "docker rmi -f `docker images -a -q --filter=reference=\"${build.dockerName}:*\"`")
     }
 
     def instanceIds
