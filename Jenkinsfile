@@ -1,10 +1,7 @@
 def createInstance(name) {
     name = name.replaceAll(' ', '-')
-    echo "name"
-    echo name
     sh(script: """aws ec2 run-instances --image-id ami-1853ac65 --count 1 --instance-type t1.micro --key-name deployment --security-groups ssh-http --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${name}\\}] > instance.out > instance.out""", returnStdout: true).trim()
     def result = readFile 'instance.out'
-    echo result
     sh """rm instance.out"""
     def regex = /InstanceId.*?(i-.*?)",/
     def match = (result =~ regex)
