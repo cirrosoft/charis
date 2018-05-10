@@ -18,7 +18,10 @@ node {
             awsCredential : "deployment"
     ]
     stage("Checkout") {
-        getPreviousBlueGreen()
+        builds = lastSuccessfullBuild(currentBuild.getPreviousBuild());
+        for (def b in builds) {
+            echo b.toString()
+        }
         echo "Checkout Code Repository"
         def scmVars = checkout scm
         build.commitHashFull = scmVars.GIT_COMMIT
@@ -78,23 +81,26 @@ node {
     }
 }
 
+passedBuilds = []
+def lastSuccessfullBuild(build) {
+    if(build != null && build.result != 'FAILURE') {
+        //Recurse now to handle in chronological order
+        lastSuccessfullBuild(build.getPreviousBuild());
+        //Add the build to the array
+        passedBuilds.add(build);
+    }
+}
+
 def getPreviousBlueGreen() {
     echo "JOB NAME:"
     echo JOB_NAME
-    def hudson = hudson.model.Hudson.instance
-    def project = null
-    hudson.getItems(org.jenkinsci.plugins.workflow.job.WorkflowJob).each {proj ->
-        echo proj.displayName
-        if (proj?.displayName?.equals(JOB_NAME)) {
-            project = proj
-        }
+    currentBuild.rawBuild.project
+    if(!hudson.model.Result.SUCCESS.equals(currentBuild.rawBuild.getPreviousBuild()?.getResult())) {
+        echo "last build failed"
+    } else {
+        echo "last build suceeded"
     }
-    project?.getBuilds().findAll { build -> // here we loop over all past builds, apply some filter if necessary
-        def parameters = build?.actions.find{ it instanceof ParametersAction }?.parameters
-        parameters.each {
-            echo "parameter ${it.name}: ${it.value}"
-        }
-    }
+    currentBuild.rawBuild.getPreviousBuild()
 }
 
 class Instances {
