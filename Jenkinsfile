@@ -184,7 +184,7 @@ class Docker {
     public static def steps
 
     static void buildCleanImageAsLatest(String imageName, String filename, ArrayList additionalImageTags = []) {
-        tagsString = ""
+        def tagsString = ""
         for (tag in additionalImageTags) {
             tagsString += "-t " + imageName + ":" + tag + " "
         }
