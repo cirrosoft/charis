@@ -82,11 +82,11 @@ def getPreviousBlueGreen() {
     def hudson = hudson.model.Hudson.instance
     def project = null
     hudson.getItems(org.jenkinsci.plugins.workflow.job.WorkflowJob).each {proj ->
-        if (project.displayName.equals(JOB_NAME)) {
+        if (project?.displayName?.equals(JOB_NAME)) {
             project = proj
         }
     }
-    project.getBuilds().findAll { build -> // here we loop over all past builds, apply some filter if necessary
+    project?.getBuilds().findAll { build -> // here we loop over all past builds, apply some filter if necessary
         def parameters = build?.actions.find{ it instanceof ParametersAction }?.parameters
         parameters.each {
             echo "parameter ${it.name}: ${it.value}"
