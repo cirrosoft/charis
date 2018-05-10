@@ -84,7 +84,7 @@ class Instances {
     static String createInstance(String nameTag) {
         nameTag = nameTag.replaceAll(' ', '-')
         steps.sh(script: """aws ec2 run-instances --image-id ami-1853ac65 --count 1 --instance-type t1.micro --key-name deployment --security-groups ssh-http --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] > instance.out > instance.out""", returnStdout: true).trim()
-        def result = readFile 'instance.out'
+        def result = steps.readFile 'instance.out'
         steps.sh """rm instance.out"""
         def regex = /InstanceId.*?(i-.*?)",/
         def match = (result =~ regex)
@@ -97,7 +97,7 @@ class Instances {
         nameTag = nameTag.replaceAll(" ", "-")
 
         steps.sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true)
-        def result = readFile 'instances.out'
+        def result = steps.readFile 'instances.out'
         steps.sh """rm instances.out"""
         def regex = /InstanceId.*?(i-.*?)",/
         def match = (result =~ regex)
@@ -157,7 +157,7 @@ class Remote {
                 steps.sh """
             ssh -i ${SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${SSH_USERNAME}@${address} ${command} > ssh-output.out
             """
-                def result = readFile 'ssh-output.out'
+                def result = steps.readFile 'ssh-output.out'
                 result = result?.trim();
                 echo result
                 lastResult = result
