@@ -1,5 +1,6 @@
 Instances.steps = this
 Remote.steps = this
+Docker.steps = this
 node {
     def build = [
             projectName : "charis-ballet",
@@ -14,7 +15,6 @@ node {
             commitHashFull : "",  // dac
             dockerName : "",      // dac
             dockerTag : "",       // dac
-            dockerTagLatest : "", // dac
             awsCredential : "deployment"
     ]
     stage("Checkout") {
@@ -23,8 +23,7 @@ node {
         build.commitHashFull = scmVars.GIT_COMMIT
         build.commitHash = build.commitHashFull.substring(0, 6)
         build.dockerName = "${build.projectName}"
-        build.dockerTag = "${build.dockerName}:${build.buildNumber}-${build.commitHash}"
-        build.dockerTagLatest = "${build.dockerName}:latest"
+        build.dockerTag = "${build.buildNumber}-${build.commitHash}"
     }
 
     stage("Test") {
@@ -33,10 +32,7 @@ node {
 
     stage("Build") {
         sh(script: "./gradlew assemble")
-        sh(script: "docker build -t ${build.dockerTag} -t ${build.dockerTagLatest} .")
-        sh(script: "docker image save ${build.dockerTagLatest} > latest-image.tar")
-        //sh(script: "docker system prune -fa")
-        sh(script: "docker rmi -f `docker images -a -q --filter=reference=\"${build.dockerName}:*\"`")
+        Docker.buildCleanImageAsLatest(build.dockerName, "latest-image.tar", [build.dockerTag])
     }
 
     def instanceIds
@@ -62,10 +58,10 @@ node {
     stage("Deploy") {
         for (id in instanceIds) {
             def ip = Instances.getInstancePublicIP(id)
-            Remote.executeRemoteCommands(build.awsCredential, ip, ["rm -rf latest-image.tar"])
-            Remote.scp(build.awsCredential, ip, "latest-image.tar", "latest-image.tar")
+            Remote.executeRemoteCommands(build.awsCredential, ip, ["rm -rf latest-image.tar"]) // remove previous tar
+            Remote.scp(build.awsCredential, ip, "latest-image.tar", "latest-image.tar") // deploy new tar
             // Cleanup old containers
-            def runningContainers = Remote.executeRemoteCommands(build.awsCredential, ip, ["docker ps -a -q --filter=\"ancestor=${build.dockerTagLatest}\""])
+            def runningContainers = Remote.executeRemoteCommands(build.awsCredential, ip, ["docker ps -a -q --filter=\"ancestor=${build.dockerName}:latest\""])
             echo "RUNNING CONTAINERS"
             echo runningContainers
             runningContainers?.trim()?.eachLine {
@@ -75,7 +71,7 @@ node {
             // Deploy new container
             def commands = [
                     "docker image load -i latest-image.tar",
-                    "sudo docker run -d -p \"80:8080\" ${build.dockerTagLatest}"
+                    "sudo docker run -d -p \"80:8080\" ${build.dockerName}:latest"
             ]
             Remote.executeRemoteCommands(build.awsCredential, ip, commands)
         }
@@ -180,6 +176,21 @@ class Remote {
            scp -i ${steps.SSH_KEYFILE} -B ${fromPath} ${steps.SSH_USERNAME}@${address}:${toPath}
            """
         }
+    }
+
+}
+
+class Docker {
+    public static def steps
+
+    static void buildCleanImageAsLatest(String imageName, String filename, ArrayList additionalImageTags = []) {
+        tagsString = ""
+        for (tag in additionalImageTags) {
+            tagsString += "-t " + imageName + ":" + tag + " "
+        }
+        steps.sh(script: "docker build ${tagsString} -t ${imageName}:latest .")
+        steps.sh(script: "docker image save ${imageName}:latest > ${filename}")
+        steps.sh(script: "docker rmi -f `docker images -a -q --filter=reference=\"${imageName}:*\"`")
     }
 
 }
