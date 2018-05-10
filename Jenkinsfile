@@ -21,7 +21,7 @@ node {
         def b = lastSuccessfullBuild();
         echo "BUILD START"
         echo b.displayName
-        echo b.number
+        echo "" + b.number
         echo "BUILD END"
         echo "Checkout Code Repository"
         def scmVars = checkout scm
