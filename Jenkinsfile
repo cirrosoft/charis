@@ -33,7 +33,7 @@ node {
 
     def instanceIds
     stage("Infrastructure") {
-        if (instanceExists(build.instanceName)) {
+        if (Instances.instanceExists(build.instanceName)) {
             instanceIds = Instances.getInstanceIds(build.instanceName)
         } else {
             def instanceId = Instances.createInstance(build.instanceName)
