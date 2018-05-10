@@ -18,7 +18,8 @@ node {
             awsCredential : "deployment"
     ]
     stage("Checkout") {
-        builds = lastSuccessfullBuild(currentBuild.getPreviousBuild());
+        def builds = []
+        builds = lastSuccessfullBuild(currentBuild.getPreviousBuild(), builds);
         for (def b in builds) {
             echo b.number
         }
@@ -81,13 +82,12 @@ node {
     }
 }
 
-def passedBuilds = []
-def lastSuccessfullBuild(build) {
+def lastSuccessfullBuild(build, array) {
     if(build != null && build.result != 'FAILURE') {
         //Recurse now to handle in chronological order
         lastSuccessfullBuild(build.getPreviousBuild());
         //Add the build to the array
-        passedBuilds.add(build);
+        array.add(build);
     }
 }
 
