@@ -159,7 +159,7 @@ class Remote {
             """
                 def result = steps.readFile 'ssh-output.out'
                 result = result?.trim();
-                echo result
+                steps.echo result
                 lastResult = result
                 steps.sh """rm ssh-output.out"""
             }
