@@ -87,7 +87,7 @@ def lastSuccessfullBuild() {
     while (b != null) {
         echo "ITERATION BUILD NUMBER"
         echo "" + b.number
-        b = build?.getPreviousBuild()
+        b = b?.getPreviousBuild()
         if (b.result == 'SUCCESS') {
             return b;
         }
