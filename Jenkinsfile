@@ -155,7 +155,7 @@ class Remote {
         steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             for (command in commands) {
                 steps.sh """
-            ssh -i ${SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${SSH_USERNAME}@${address} ${command} > ssh-output.out
+            ssh -i ${steps.SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${steps.SSH_USERNAME}@${address} ${command} > ssh-output.out
             """
                 def result = steps.readFile 'ssh-output.out'
                 result = result?.trim();
@@ -171,7 +171,7 @@ class Remote {
         address = address.trim()
         steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             steps.sh """
-           scp -i ${SSH_KEYFILE} -B ${fromPath} ${SSH_USERNAME}@${address}:${toPath}
+           scp -i ${steps.SSH_KEYFILE} -B ${fromPath} ${steps.SSH_USERNAME}@${address}:${toPath}
            """
         }
     }
