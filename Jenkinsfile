@@ -18,11 +18,11 @@ node {
             awsCredential : "deployment"
     ]
     stage("Checkout") {
-        def builds = []
-        builds = lastSuccessfullBuild(currentBuild.getPreviousBuild(), builds);
-        for (def b in builds) {
-            echo b.number
-        }
+        def b = lastSuccessfullBuild();
+        echo "BUILD START"
+        echo b.displayName
+        echo b.number
+        echo "BUILD END"
         echo "Checkout Code Repository"
         def scmVars = checkout scm
         build.commitHashFull = scmVars.GIT_COMMIT
@@ -82,13 +82,17 @@ node {
     }
 }
 
-def lastSuccessfullBuild(build, array) {
-    if(build != null && build.result != 'FAILURE') {
-        //Recurse now to handle in chronological order
-        lastSuccessfullBuild(build.getPreviousBuild());
-        //Add the build to the array
-        array.add(build);
+def lastSuccessfullBuild() {
+    def b = currentBuild
+    while (b != null) {
+        echo "ITERATION BUILD NUMBER"
+        echo b.number
+        b = build?.getPreviousBuild()
+        if (b.result == 'SUCCESS') {
+            return b;
+        }
     }
+    return null;
 }
 
 def getPreviousBlueGreen() {
