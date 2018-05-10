@@ -5,10 +5,10 @@ Docker.steps = this
 node {
     def build = [
             projectName : "charis-ballet",
-            color : "blue",
+            color : "grey",
             env : "development",
             buildNumber : BUILD_NUMBER,
-            instanceName : "charis-ballet-docker",
+            instanceName : "charis-ballet", // dac
             instanceType : "t1.micro",
             instanceImage : "ami-1853ac65",
             instanceSecurityGroup : "ssh-http",
@@ -21,9 +21,10 @@ node {
     ]
     stage("Checkout") {
         build.color = ProjectTools.getBlueOrGreen()
-        echo "COLOR:"
+        echo "Deployment Color:"
         echo build.color
         echo "Checkout Code Repository"
+        build.instanceName = "${build.instanceName}-${build.color}"
         def scmVars = checkout scm
         build.commitHashFull = scmVars.GIT_COMMIT
         build.commitHash = build.commitHashFull.substring(0, 6)
