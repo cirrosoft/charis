@@ -152,7 +152,7 @@ class Remote {
     static String executeRemoteCommands(String credentialId, String address, ArrayList commands) {
         def lastResult = ""
         address = address.trim()
-        withCredentials([sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
+        steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             for (command in commands) {
                 steps.sh """
             ssh -i ${SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${SSH_USERNAME}@${address} ${command} > ssh-output.out
@@ -169,7 +169,7 @@ class Remote {
 
     static void scp(String credentialId, String address, String fromPath, String toPath) {
         address = address.trim()
-        withCredentials([sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
+        steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             steps.sh """
            scp -i ${SSH_KEYFILE} -B ${fromPath} ${SSH_USERNAME}@${address}:${toPath}
            """
