@@ -107,7 +107,7 @@ class Instances {
     }
 
     static boolean instanceExists(String nameTag) {
-        def instances = getInstanceIds(nameTag)
+        def instances = this.getInstanceIds(nameTag)
         if (instances) {
             return true
         } else {
@@ -121,9 +121,9 @@ class Instances {
 
     static void deleteInstances(String nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
-        def instances = getInstanceIds(nameTag)
+        def instances = this.getInstanceIds(nameTag)
         for (id in instances) {
-            deleteInstance(id)
+            this.deleteInstance(id)
         }
     }
 
