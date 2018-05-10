@@ -4,6 +4,7 @@ Docker.steps = this
 node {
     def build = [
             projectName : "charis-ballet",
+            color : "blue",
             env : "development",
             buildNumber : BUILD_NUMBER,
             instanceName : "charis-ballet-docker",
@@ -18,11 +19,9 @@ node {
             awsCredential : "deployment"
     ]
     stage("Checkout") {
-        def b = lastSuccessfullBuild();
-        echo "BUILD START"
-        echo b.displayName
-        echo "" + b.number
-        echo "BUILD END"
+        build.color = getBlueOrGreen()
+        echo "COLOR:"
+        echo build.color
         echo "Checkout Code Repository"
         def scmVars = checkout scm
         build.commitHashFull = scmVars.GIT_COMMIT
@@ -82,29 +81,28 @@ node {
     }
 }
 
-def lastSuccessfullBuild() {
+def getSuccessfullBuilds() {
     def b = currentBuild
+    def builds = []
     while (b != null) {
         echo "ITERATION BUILD NUMBER"
         echo "" + b.number
         b = b?.getPreviousBuild()
         if (b.result == 'SUCCESS') {
-            return b;
+            builds.add(b)
         }
     }
-    return null;
+    return builds;
 }
 
-def getPreviousBlueGreen() {
-    echo "JOB NAME:"
-    echo JOB_NAME
-    currentBuild.rawBuild.project
-    if(!hudson.model.Result.SUCCESS.equals(currentBuild.rawBuild.getPreviousBuild()?.getResult())) {
-        echo "last build failed"
+def getBlueOrGreen() {
+    def builds = getSuccessfullBuilds()
+    def count = builds.size()
+    if (count % 2 == 0) {
+        return "blue"
     } else {
-        echo "last build suceeded"
+        return "green"
     }
-    currentBuild.rawBuild.getPreviousBuild()
 }
 
 class Instances {
