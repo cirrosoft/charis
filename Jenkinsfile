@@ -149,7 +149,7 @@ class Instances {
 
 class Remote {
     public static def steps
-    static String executeRemoteCommands(String credentialId, String address, String[] commands) {
+    static String executeRemoteCommands(String credentialId, String address, ArrayList commands) {
         def lastResult = ""
         address = address.trim()
         withCredentials([sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
