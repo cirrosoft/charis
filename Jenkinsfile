@@ -20,7 +20,7 @@ node {
     stage("Checkout") {
         builds = lastSuccessfullBuild(currentBuild.getPreviousBuild());
         for (def b in builds) {
-            echo b.toString()
+            echo b.number
         }
         echo "Checkout Code Repository"
         def scmVars = checkout scm
