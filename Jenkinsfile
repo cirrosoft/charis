@@ -18,6 +18,7 @@ node {
             awsCredential : "deployment"
     ]
     stage("Checkout") {
+        getPreviousBlueGreen()
         echo "Checkout Code Repository"
         def scmVars = checkout scm
         build.commitHashFull = scmVars.GIT_COMMIT
@@ -60,10 +61,8 @@ node {
             def ip = Instances.getInstancePublicIP(id)
             Remote.executeRemoteCommands(build.awsCredential, ip, ["rm -rf latest-image.tar"]) // remove previous tar
             Remote.scp(build.awsCredential, ip, "latest-image.tar", "latest-image.tar") // deploy new tar
-            // Cleanup old containers
+            // Stop and cleanup old containers
             def runningContainers = Remote.executeRemoteCommands(build.awsCredential, ip, ["docker ps -a -q --filter=\"ancestor=${build.dockerName}:latest\""])
-            echo "RUNNING CONTAINERS"
-            echo runningContainers
             runningContainers?.trim()?.eachLine {
                 Remote.executeRemoteCommands(build.awsCredential, ip, ["docker stop ${it}"])
                 Remote.executeRemoteCommands(build.awsCredential, ip, ["docker rm ${it}"])
@@ -79,7 +78,21 @@ node {
     }
 }
 
-
+def getPreviousBlueGreen() {
+    def hudson = hudson.model.Hudson.instance
+    def project = null
+    hudson.getItems(org.jenkinsci.plugins.workflow.job.WorkflowJob).each {proj ->
+        if (project.displayName.equals(JOB_NAME)) {
+            project = proj
+        }
+    }
+    project.getBuilds().findAll { build -> // here we loop over all past builds, apply some filter if necessary
+        def parameters = build?.actions.find{ it instanceof ParametersAction }?.parameters
+        parameters.each {
+            echo "parameter ${it.name}: ${it.value}"
+        }
+    }
+}
 
 class Instances {
     public static def steps
