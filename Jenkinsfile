@@ -1,3 +1,4 @@
+ProjectTools.steps = this
 Instances.steps = this
 Remote.steps = this
 Docker.steps = this
@@ -19,7 +20,7 @@ node {
             awsCredential : "deployment"
     ]
     stage("Checkout") {
-        build.color = getBlueOrGreen()
+        build.color = ProjectTools.getBlueOrGreen()
         echo "COLOR:"
         echo build.color
         echo "Checkout Code Repository"
@@ -81,29 +82,30 @@ node {
     }
 }
 
-def getSuccessfullBuilds() {
-    def b = currentBuild
-    def builds = []
-    while (b != null) {
-        echo "ITERATION BUILD NUMBER"
-        echo "" + b.number
-        b = b?.getPreviousBuild()
-        if (b.result == 'SUCCESS') {
-            builds.add(b)
+class ProjectTools {
+    public static def steps
+    static ArrayList getSuccessfullBuilds() {
+        def b = steps.currentBuild
+        def builds = []
+        while (b != null) {
+            b = b?.getPreviousBuild()
+            if (b?.result == 'SUCCESS') {
+                builds.add(b)
+            }
+        }
+        return builds;
+    }
+    static String getBlueOrGreen() {
+        def builds = getSuccessfullBuilds()
+        def count = builds.size()
+        if (count % 2 == 0) {
+            return "blue"
+        } else {
+            return "green"
         }
     }
-    return builds;
 }
 
-def getBlueOrGreen() {
-    def builds = getSuccessfullBuilds()
-    def count = builds.size()
-    if (count % 2 == 0) {
-        return "blue"
-    } else {
-        return "green"
-    }
-}
 
 class Instances {
     public static def steps
