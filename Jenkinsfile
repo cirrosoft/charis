@@ -107,7 +107,7 @@ class Instances {
     }
 
     static boolean instanceExists(String nameTag) {
-        instances = getInstanceIds(nameTag)
+        def instances = getInstanceIds(nameTag)
         if (instances) {
             return true
         } else {
