@@ -21,7 +21,6 @@ def getInstances(nameTag) {
     def instances = []
     while (match.find()) {
         instanceId = match.group(1)
-        echo instanceId
         instances.add(instanceId)
     }
     return instances
