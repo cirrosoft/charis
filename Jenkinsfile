@@ -93,7 +93,7 @@ class Instances {
 
     static String[] getInstanceIds(String nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
-        sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true).trim()
+        sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true)
         def result = readFile 'instances.out'
         sh """rm instances.out"""
         def regex = /InstanceId.*?(i-.*?)",/
