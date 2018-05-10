@@ -14,7 +14,6 @@ def getInstances(nameTag) {
     nameTag = nameTag.replaceAll(" ", "-")
     sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true).trim()
     def result = readFile 'instances.out'
-    echo result
     sh """rm instances.out"""
 //    def regex = /ResourceId.*?(i-.*?)",/
     def regex = /InstanceId.*?(i-.*?)",/
