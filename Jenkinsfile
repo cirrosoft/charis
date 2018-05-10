@@ -81,7 +81,7 @@ node {
     }
 }
 
-passedBuilds = []
+def passedBuilds = []
 def lastSuccessfullBuild(build) {
     if(build != null && build.result != 'FAILURE') {
         //Recurse now to handle in chronological order
