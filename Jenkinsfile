@@ -6,11 +6,15 @@ node {
             env : "development",
             buildNumber : BUILD_NUMBER,
             instanceName : "charis-ballet-docker",
-            commitHash : "",
-            commitHashFull : "",
-            dockerName : "",
-            dockerTag : "",
-            dockerTagLatest : "",
+            instanceType : "t1.micro",
+            instanceImage : "ami-1853ac65",
+            instanceSecurityGroup : "ssh-http",
+            instanceKeyPair : "deployment",
+            commitHash : "",      // define after checkout (dac)
+            commitHashFull : "",  // dac
+            dockerName : "",      // dac
+            dockerTag : "",       // dac
+            dockerTagLatest : "", // dac
             awsCredential : "deployment"
     ]
     stage("Checkout") {
@@ -31,6 +35,7 @@ node {
         sh(script: "./gradlew assemble")
         sh(script: "docker build -t ${build.dockerTag} -t ${build.dockerTagLatest} .")
         sh(script: "docker image save ${build.dockerTagLatest} > latest-image.tar")
+        sh(script: "docker system prune -fa")
     }
 
     def instanceIds
@@ -38,7 +43,7 @@ node {
         if (Instances.instanceExists(build.instanceName)) {
             instanceIds = Instances.getInstanceIds(build.instanceName)
         } else {
-            def instanceId = Instances.createInstance(build.instanceName)
+            def instanceId = Instances.createInstance(build.instanceName, build.instanceType, build.instanceImage, build.instanceSecurityGroup, build.instanceKeyPair)
             instanceIds = [instanceId]
             Instances.waitForInstance(instanceId)
             def ip = Instances.getInstancePublicIP(instanceId)
@@ -81,9 +86,9 @@ node {
 
 class Instances {
     public static def steps
-    static String createInstance(String nameTag) {
+    static String createInstance(String nameTag, String type, String ami, String securityGroup, String keyPairName) {
         nameTag = nameTag.replaceAll(' ', '-')
-        steps.sh(script: """aws ec2 run-instances --image-id ami-1853ac65 --count 1 --instance-type t1.micro --key-name deployment --security-groups ssh-http --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] > instance.out > instance.out""", returnStdout: true).trim()
+        steps.sh(script: """aws ec2 run-instances --image-id ${ami} --count 1 --instance-type ${type} --key-name ${keyPairName} --security-groups ${securityGroup} --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] > instance.out > instance.out""", returnStdout: true).trim()
         def result = steps.readFile 'instance.out'
         steps.sh """rm instance.out"""
         def regex = /InstanceId.*?(i-.*?)",/
