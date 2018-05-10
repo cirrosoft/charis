@@ -1,3 +1,5 @@
+Instances.steps = this
+Remote.steps = this
 node {
     def build = [
             projectName : "charis-ballet",
@@ -78,12 +80,12 @@ node {
 
 
 class Instances {
-
+    public static def steps
     static String createInstance(String nameTag) {
         nameTag = nameTag.replaceAll(' ', '-')
-        sh(script: """aws ec2 run-instances --image-id ami-1853ac65 --count 1 --instance-type t1.micro --key-name deployment --security-groups ssh-http --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] > instance.out > instance.out""", returnStdout: true).trim()
+        steps.sh(script: """aws ec2 run-instances --image-id ami-1853ac65 --count 1 --instance-type t1.micro --key-name deployment --security-groups ssh-http --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] > instance.out > instance.out""", returnStdout: true).trim()
         def result = readFile 'instance.out'
-        sh """rm instance.out"""
+        steps.sh """rm instance.out"""
         def regex = /InstanceId.*?(i-.*?)",/
         def match = (result =~ regex)
         match.find()
@@ -94,9 +96,9 @@ class Instances {
     static String[] getInstanceIds(nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
 
-        sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true)
+        steps.sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' > instances.out""", returnStdout: true)
         def result = readFile 'instances.out'
-        sh """rm instances.out"""
+        steps.sh """rm instances.out"""
         def regex = /InstanceId.*?(i-.*?)",/
         def match = (result =~ regex)
         def instances = []
@@ -117,7 +119,7 @@ class Instances {
     }
 
     static void deleteInstance(String id) {
-        sh(script: """aws ec2 terminate-instances --instance-ids ${id}""")
+        steps.sh(script: """aws ec2 terminate-instances --instance-ids ${id}""")
     }
 
     static void deleteInstances(String nameTag) {
@@ -129,37 +131,37 @@ class Instances {
     }
 
     static void waitForInstance(String id) {
-        echo "Waiting for instance to start..."
-        sh(script: """aws ec2 wait instance-running --instance-ids ${id}""")
-        echo "Waiting for instance to become available to the network..."
-        sh(script: """aws ec2 wait instance-status-ok --instance-ids ${id}""")
+        steps.echo "Waiting for instance to start..."
+        steps.sh(script: """aws ec2 wait instance-running --instance-ids ${id}""")
+        steps.echo "Waiting for instance to become available to the network..."
+        steps.sh(script: """aws ec2 wait instance-status-ok --instance-ids ${id}""")
     }
 
     static String getInstancePublicIP(String id) {
-        return sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PublicIpAddress | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true)
+        return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PublicIpAddress | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true)
     }
 
     static String getInstancePrivateIP(String id) {
-        return sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PrivateIpAddress  | head -1 | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true)
+        return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PrivateIpAddress  | head -1 | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true)
     }
 
 }
 
 class Remote {
-
+    public static def steps
     static String executeRemoteCommands(String credentialId, String address, String[] commands) {
         def lastResult = ""
         address = address.trim()
         withCredentials([sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             for (command in commands) {
-                sh """
+                steps.sh """
             ssh -i ${SSH_KEYFILE} -o StrictHostKeyChecking=no -tt ${SSH_USERNAME}@${address} ${command} > ssh-output.out
             """
                 def result = readFile 'ssh-output.out'
                 result = result?.trim();
                 echo result
                 lastResult = result
-                sh """rm ssh-output.out"""
+                steps.sh """rm ssh-output.out"""
             }
         }
         return lastResult
@@ -168,7 +170,7 @@ class Remote {
     static void scp(String credentialId, String address, String fromPath, String toPath) {
         address = address.trim()
         withCredentials([sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
-            sh """
+            steps.sh """
            scp -i ${SSH_KEYFILE} -B ${fromPath} ${SSH_USERNAME}@${address}:${toPath}
            """
         }
