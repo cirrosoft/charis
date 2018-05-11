@@ -72,7 +72,7 @@ node {
                 Remote.executeRemoteCommands(build.awsCredential, ip, ["docker rm ${it}"])
             }
             // Deploy new container
-            def props = ProjectTools.generateJavaPropertiesString(build)
+            def javaParams = ProjectTools.generateJavaPropertiesString(build)
             def commands = [
                     "docker image load -i latest-image.tar",
                     "sudo docker run -e \"JAVA_OPTS=${javaParams}\" -d -p \"80:8080\" ${build.dockerName}:latest"
