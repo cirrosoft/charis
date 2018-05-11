@@ -19,7 +19,7 @@ node {
             dockerTag : "",       // dac
             awsCredential : "deployment"
     ]
-    stage("Checkout") {
+    stage("\u265A Checkout") {
         build.color = ProjectTools.getBlueOrGreen()
         echo "Deployment Color:"
         echo build.color
@@ -32,17 +32,17 @@ node {
         build.dockerTag = "${build.buildNumber}-${build.commitHash}"
     }
 
-    stage("Test") {
+    stage("\u267A Unit Test") {
         //sh(script: "./gradlew test")
     }
 
-    stage("Build") {
+    stage("\u2692 Build") {
         sh(script: "./gradlew assemble")
         Docker.buildCleanImageAsLatest(build.dockerName, "latest-image.tar", [build.dockerTag])
     }
 
     def instanceIds
-    stage("Infrastructure") {
+    stage("\u26E9 Infrastructure") {
         if (Instances.instanceExists(build.instanceName)) {
             instanceIds = Instances.getInstanceIds(build.instanceName)
         } else {
@@ -61,7 +61,7 @@ node {
         }
     }
 
-    stage("Deploy") {
+    stage("\u26A1 Deploy") {
         for (id in instanceIds) {
             def ip = Instances.getInstancePublicIP(id)
             Remote.executeRemoteCommands(build.awsCredential, ip, ["rm -rf latest-image.tar"]) // remove previous tar
@@ -81,6 +81,16 @@ node {
         }
         echo "Service Deployed"
     }
+
+    stage("\u267A Integration Test") {
+
+    }
+
+    stage("\u1F68 Crossover") {
+
+    }
+
+
 }
 
 class ProjectTools {
