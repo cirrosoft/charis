@@ -225,7 +225,7 @@ class Route53 {
                     "ResourceRecordSet": {
                     "Name": "${domainName}",
                     "Type": "A",
-                    "TTL": 60,
+                    "TTL": 300,
                     "ResourceRecords": [
                             {
                                 "Value": "${ip}"
