@@ -235,7 +235,7 @@ class Route53 {
         ]
         }
         """
-        writeFile(file: "dsn-record.json", text: record)
+        steps.writeFile(file: "dsn-record.json", text: record)
         sh(script: """aws route53 change-resource-record-sets --hosted-zone-id ${zoneId} --change-batch file://dns-record.json | tee change.out""", returnStdout: true)
         def result = steps.readFile 'change.out'
         steps.sh """rm change.out"""
