@@ -187,11 +187,11 @@ class Instances {
     }
 
     static String getInstancePublicIP(String id) {
-        return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PublicIpAddress | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true)
+        return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PublicIpAddress | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true).trim()
     }
 
     static String getInstancePrivateIP(String id) {
-        return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PrivateIpAddress  | head -1 | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true)
+        return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PrivateIpAddress  | head -1 | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true).trim()
     }
 
 }
@@ -229,9 +229,8 @@ class Remote {
         steps.timeout(5) {
             steps.waitUntil {
                 steps.script {
-                    steps.sleep 2
                     steps.echo "Waiting for response from ${url}"
-                    def result = steps.sh(script: "wget -q ${url} -O /dev/null", returnStatus: true)
+                    def result = steps.sh(script: "wget -q \\\"${url}\\\" -O /dev/null", returnStatus: true)
                     return (result == 0);
                 }
             }
