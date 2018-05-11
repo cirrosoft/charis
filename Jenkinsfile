@@ -95,6 +95,7 @@ node {
     stage("\u21C6 Crossover") {
         def zoneId = Route53.getHostedZoneId(build.domainName)
         Route53.createRecord(zoneId, build.domainName, ip)
+        Route53.createRecord(zoneId, build.color+"."+build.domainName, ip)
     }
 
 
