@@ -83,7 +83,10 @@ node {
     }
 
     stage("\u267A Integration Test") {
-
+        for (id in instanceIds) {
+            def ip = Instances.getInstancePublicIP(id)
+            Remote.waitForUrlSuccess("http://${ip}/health")
+        }
     }
 
     stage("\u21C6 Crossover") {
@@ -219,6 +222,19 @@ class Remote {
             steps.sh """
            scp -i ${steps.SSH_KEYFILE} -B ${fromPath} ${steps.SSH_USERNAME}@${address}:${toPath}
            """
+        }
+    }
+
+    static void waitForUrlSuccess(String url) {
+        steps.timeout(5) {
+            steps.waitUntil {
+                steps.script {
+                    steps.sleep 2
+                    steps.echo "Waiting for response from ${url}"
+                    def result = steps.sh(script: "wget -q ${url} -O /dev/null", returnStatus: true)
+                    return (result == 0);
+                }
+            }
         }
     }
 
