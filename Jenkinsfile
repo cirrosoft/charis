@@ -237,10 +237,7 @@ class Route53 {
         """
         steps.echo record
         steps.sh """touch dns-record.json"""
-        def writer = new FileWriter("dns-record.json")
-        writer.write(record)
-        writer.flush()
-        writer.close()
+        steps.writeFile file: "dns-record.json", text: record
         steps.sleep 1
         steps.sh(script: """aws route53 change-resource-record-sets --hosted-zone-id ${zoneId} --change-batch file://dns-record.json | tee change.out""", returnStdout: true)
         def result = steps.readFile 'change.out'
