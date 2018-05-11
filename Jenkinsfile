@@ -4,9 +4,8 @@ Remote.steps = this
 Docker.steps = this
 node {
     def build = [
-            projectName : "charis-ballet",
+            appName : "charis-ballet",
             color : "grey",
-            env : "development",
             buildNumber : BUILD_NUMBER,
             instanceName : "charis-ballet", // dac
             instanceType : "t1.micro",
@@ -28,7 +27,7 @@ node {
         def scmVars = checkout scm
         build.commitHashFull = scmVars.GIT_COMMIT
         build.commitHash = build.commitHashFull.substring(0, 6)
-        build.dockerName = "${build.projectName}"
+        build.dockerName = "${build.appName}"
         build.dockerTag = "${build.buildNumber}-${build.commitHash}"
     }
 
@@ -73,9 +72,10 @@ node {
                 Remote.executeRemoteCommands(build.awsCredential, ip, ["docker rm ${it}"])
             }
             // Deploy new container
+            def props = ProjectTools.generateJavaPropertiesString(build)
             def commands = [
                     "docker image load -i latest-image.tar",
-                    "sudo docker run -d -p \"80:8080\" ${build.dockerName}:latest"
+                    "sudo docker run -e \"JAVA_OPTS=${javaParams}\" -d -p \"80:8080\" ${build.dockerName}:latest"
             ]
             Remote.executeRemoteCommands(build.awsCredential, ip, commands)
         }
@@ -114,6 +114,13 @@ class ProjectTools {
         } else {
             return "green"
         }
+    }
+    static String generateJavaPropertiesString(Map props) {
+        def propsString = ""
+        props.each{ k, v ->
+            propsString += "-Dbuild."+k+"="+v+" "
+        }
+        return propsString
     }
 }
 

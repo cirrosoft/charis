@@ -1,8 +1,22 @@
 server:
   port: 8080
 
-
 spring:
   mustache:
     suffix: .mustache
   jackson.date-format: mm-dd-yyyy HH:mm:ss
+
+build:
+  appName: "charis-ballet"
+  color: "grey"
+  buildNumber: "development-build"
+  instanceName: "development-instance"
+  instanceType: "dev-box"
+  instanceImage: "no-instance"
+  instanceSecurityGroup: "no-security-group"
+  instanceKeyPair: "no-deployment"
+  commitHash: "no-commit"
+  commitHashFull: "no-commit"
+  dockerName: "no-docker"
+  dockerTag: "no-docker"
+  awsCredential: "none"
