@@ -1,5 +1,6 @@
 ProjectTools.steps = this
 Instances.steps = this
+Route53.steps = this
 Remote.steps = this
 Docker.steps = this
 node {
@@ -16,7 +17,8 @@ node {
             commitHashFull : "",  // dac
             dockerName : "",      // dac
             dockerTag : "",       // dac
-            awsCredential : "deployment"
+            awsCredential : "deployment",
+            domainName : "charisballet.com."
     ]
     stage("\u265A Checkout") {
         build.color = ProjectTools.getBlueOrGreen()
@@ -82,15 +84,17 @@ node {
         echo "Service Deployed"
     }
 
+    def ip
     stage("\u267A Integration Test") {
         for (id in instanceIds) {
-            def ip = Instances.getInstancePublicIP(id)
+            ip = Instances.getInstancePublicIP(id)
             Remote.waitForUrlSuccess("http://${ip}/health")
         }
     }
 
     stage("\u21C6 Crossover") {
-
+        def zoneId = Route53.getHostedZoneId(build.domainName)
+        Route53.createRecord(zoneId, build.domainName, ip)
     }
 
 
@@ -194,6 +198,56 @@ class Instances {
         return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PrivateIpAddress  | head -1 | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true).trim()
     }
 
+}
+
+class Route53 {
+    public static def steps
+    static String getHostedZoneId(String domainName) {
+        steps.sh("""aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name==\\\"${domainName}\\\")' | tee zones.out""", returnStdout: true)
+        def result = steps.readFile 'zones.out'
+        steps.sh """rm zones.out"""
+        def regex = /Id.*?\/hostedzone\/(.*?)",/
+        def match = (result =~ regex)
+        if (match.find()) {
+            def zone = match.group(1)
+            return zone
+        }
+        return null
+    }
+    static String createRecord(String zoneId, String domainName, String ip) {
+        def record = """
+        {
+            "Comment": "A new record set for the zone.",
+            "Changes": [
+                {
+                    "Action": "UPSERT",
+                    "ResourceRecordSet": {
+                    "Name": "${domainName}",
+                    "Type": "A",
+                    "TTL": 60,
+                    "ResourceRecords": [
+                            {
+                                "Value": "${ip}"
+                            }
+                    ]
+                }
+                }
+        ]
+        }
+        """
+        writeFile(file: "dsn-record.json", text: record)
+        sh(script: """aws route53 change-resource-record-sets --hosted-zone-id ${zoneId} --change-batch file://dns-record.json | tee change.out""", returnStdout: true)
+        def result = steps.readFile 'change.out'
+        steps.sh """rm change.out"""
+        steps.sh """rm dns-record.json"""
+        def regex = /Id.*?\/change\/(.*?)",/
+        def match = (result =~ regex)
+        if (match.find()) {
+            def changeId = match.group(1)
+            return changeId
+        }
+        return null
+    }
 }
 
 class Remote {
