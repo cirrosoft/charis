@@ -312,4 +312,12 @@ class Docker {
 
 }
 
+class Database {
+    public static def steps
+
+    static void migrate() {
+        steps.sh(script: """flyway -driver=com.mysql.jdbc.Driver -url=jdbc:mysql://localhost:3306/newline -user=root -password=password -locations=filesystem:sql migrate""", returnStdout: true)
+    }
+}
+
 

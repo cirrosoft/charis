@@ -10,6 +10,10 @@ buildscript {
     }
 }
 
+plugins {
+    id "org.flywaydb.flyway" version "5.0.7"
+}
+
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'eclipse'
@@ -23,6 +27,25 @@ bootRun {
     systemProperties = System.properties
 }
 
+flyway {
+    url = 'jdbc:mysql://localhost:3306/db'
+    user = 'root'
+    password = 'password'
+}
+
+task stopDbKill(type: Exec) { commandLine 'docker', 'kill', "db" }
+task stopDb(type: Exec) { commandLine 'docker', 'rm', '-f', "db" }
+task startDb(type: Exec) {
+    commandLine 'docker',
+            'run',
+            '-p', "3306:3306",
+            "--name", "db",
+            "-e", "MYSQL_ROOT_PASSWORD=password",
+            "-e", "MYSQL_DATABASE=db",
+            "-d", "mysql:5.7"
+}
+stopDb.dependsOn(stopDbKill)
+
 repositories {
     mavenCentral()
 }
@@ -31,4 +54,5 @@ dependencies {
     compile('org.springframework.boot:spring-boot-starter-web')
     compile("org.springframework.boot:spring-boot-devtools")
     compile("org.springframework.boot:spring-boot-starter-mustache")
+    compile("mysql:mysql-connector-java:6.0.5")
 }
