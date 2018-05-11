@@ -230,7 +230,7 @@ class Remote {
             steps.waitUntil {
                 steps.script {
                     steps.echo "Waiting for response from ${url}"
-                    def result = steps.sh(script: "wget -q \\\"${url}\\\" -O /dev/null", returnStatus: true)
+                    def result = steps.sh(script: "wget -q ${url} -O /dev/null", returnStatus: true)
                     return (result == 0);
                 }
             }
