@@ -203,7 +203,7 @@ class Instances {
 class Route53 {
     public static def steps
     static String getHostedZoneId(String domainName) {
-        steps.sh("""aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name==\\\"${domainName}\\\")' | tee zones.out""", returnStdout: true)
+        steps.sh(script: """aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name==\\\"${domainName}\\\")' | tee zones.out""", returnStdout: true)
         def result = steps.readFile 'zones.out'
         steps.sh """rm zones.out"""
         def regex = /Id.*?\/hostedzone\/(.*?)",/
