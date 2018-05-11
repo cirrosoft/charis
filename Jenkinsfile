@@ -236,7 +236,7 @@ class Route53 {
         }
         """
         steps.echo record
-        def file = new File(steps.build.workspace.toString() + "/dns-record.json")
+        def file = new File(steps.currentBuild.workspace.toString() + "/dns-record.json")
         def writer = file.newWriter()
         writer.write(record)
         writer.flush()
