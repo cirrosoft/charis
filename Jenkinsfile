@@ -236,6 +236,7 @@ class Route53 {
         }
         """
         steps.echo record
+        steps.sh """touch dns-record.json"""
         def writer = new FileWriter("dns-record.json")
         writer.write(record)
         writer.flush()
