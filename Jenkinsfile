@@ -106,7 +106,7 @@ node {
                     build.dockerName,
                     build,
                     build.dbCredential,
-                    ipDb
+                    "jdbc:mysql://${ipDb}:3306/main"
             )
         }
         echo "Service Deployed"
