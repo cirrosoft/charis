@@ -84,7 +84,7 @@ node {
             ip = Instances.getInstancePublicIP(instanceIdsDb[0])
             def dbDockerName = "mysql:5.7"
             withCredentials([usernamePassword(credentialsId: build.dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
-                def dbDockerParams = "-p \\\"3306:3306\\\" --name db -e \\\"MYSQL_USER=${DB_USERNAME}\\\" -e \\\"MYSQL_PASSWORD=${DB_PASSWORD}\\\" -e \\\"MYSQL_DATABASE=main\\\" -d"
+                def dbDockerParams = "-p 3306:3306 --name db -e MYSQL_USER=${DB_USERNAME} -e MYSQL_PASSWORD=${DB_PASSWORD} -e MYSQL_DATABASE=main -d"
                 Docker.deployImage(build.awsSSHCredential, ip, dbDockerName, dbDockerParams)
             }
         }
