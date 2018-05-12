@@ -421,7 +421,16 @@ class Flyway {
     public static def steps
     static void migrateWithGradle(String dbCredential, url) {
         steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
-            steps.sh(script: """./gradlew -Dflyway.user=${steps.DB_USERNAME} -Dflyway.password=${steps.DB_PASSWORD} -Dflyway.url=${url}  flywayMigrate""")
+            steps.timeout(3) {
+                steps.waitUntil {
+                    steps.script {
+                        steps.echo "Waiting for response from ${url}"
+                        def result = steps.sh(script: """./gradlew -Dflyway.user=${steps.DB_USERNAME} -Dflyway.password=${steps.DB_PASSWORD} -Dflyway.url=${url}  flywayMigrate""", returnStatus: true)
+                        return (result == 0);
+                    }
+                }
+            }
+
         }
     }
 }
