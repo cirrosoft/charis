@@ -365,7 +365,7 @@ class Docker {
             ArrayList buildMap
     ) {
         Remote.executeRemoteCommands(sshCred, address, ["rm -rf ${imageFileString}"]) // remove previous tar
-        Remote.scp(sshCred, ip, imageFileString, imageFileString) // deploy new tar
+        Remote.scp(sshCred, address, imageFileString, imageFileString) // deploy new tar
         // Stop and cleanup old containers
         def runningContainers = Remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageName}:latest\""])
         runningContainers?.trim()?.eachLine {
