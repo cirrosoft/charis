@@ -60,8 +60,9 @@ node {
     }
 
     def instanceIdsDb
+    def ipDb
     stage("\u26D3 Synchronize DB") {
-        def ip
+
         if (Instances.instanceExists(build.instanceNameDb)) {
             // Production Database should already be present.
             //   If it is not there something else is seriously wrong
@@ -70,7 +71,7 @@ node {
             //     name of the db instance in deployment.
             //     otherwise a new install will occur.
             instanceIdsDb = Instances.getInstanceIds(build.instanceNameDb)
-            ip = Instances.getInstancePublicIP(instanceIdsDb[0])
+            ipDb = Instances.getInstancePublicIP(instanceIdsDb[0])
         } else {
             // This case is only for first startup.
             instanceIdsDb = ProjectTools.ensureDockerInstance(
@@ -82,7 +83,7 @@ node {
                     build.instanceKeyPair,
                     Docker.installCommands.amazonLinux
             )
-            ip = Instances.getInstancePublicIP(instanceIdsDb[0])
+            ipDb = Instances.getInstancePublicIP(instanceIdsDb[0])
             def dbDockerName = "mysql:5.7"
             withCredentials([usernamePassword(credentialsId: build.dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
                 def dbDockerParams = "-p 3306:3306 --name db -e MYSQL_USER=${DB_USERNAME} -e MYSQL_PASSWORD=${DB_PASSWORD} -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} -e MYSQL_DATABASE=main -d"
@@ -91,7 +92,7 @@ node {
         }
         // In this stage we migrate no matter what.
         // This takes changes from the resource/db/migrations directory and applies them to the deployed db.
-        def url = "jdbc:mysql://${ip}:3306/main"
+        def url = "jdbc:mysql://${ipDb}:3306/main"
         Flyway.migrateWithGradle(build.dbCredential, url)
     }
 
@@ -105,7 +106,7 @@ node {
                     build.dockerName,
                     build,
                     build.dbCredential,
-                    instanceIdsDb[0]
+                    ipDb
             )
         }
         echo "Service Deployed"

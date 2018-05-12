@@ -28,16 +28,8 @@ public class HealthController {
                 "build.appName",
                 "build.color",
                 "build.buildNumber",
-                "build.instanceName",
-                "build.instanceType",
-                "build.instanceImage",
-                "build.instanceSecurityGroup",
-                "build.instanceKeyPair",
                 "build.commitHash",
-                "build.commitHashFull",
-                "build.dockerName",
-                "build.dockerTag",
-                "build.awsCredential"
+                "build.commitHashFull"
         };
         for (String key : buildNames) {
             try {
