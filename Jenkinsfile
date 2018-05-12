@@ -405,7 +405,7 @@ class Docker {
 class Flyway {
     public static def steps
     static void migrateWithGradle(String dbCredential, url) {
-        steps.withCredentials([usernamePassword(credentialsId: credentialId, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+        steps.withCredentials([usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
             steps.sh(script: """./gradlew -Dflyway.user=${steps.DB_USERNAME} -Dflyway.password=${steps.DB_PASSWORD} -Dflyway.url=${url}  flywayMigrate""")
         }
     }
