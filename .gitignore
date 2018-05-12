@@ -6,4 +6,5 @@
 .gradle
 *.idea
 build/
+out/
 *.tar
