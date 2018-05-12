@@ -28,7 +28,7 @@ bootRun {
 }
 
 flyway {
-    url = 'jdbc:mysql://localhost:3306/db'
+    url = 'jdbc:mysql://localhost:3306/main'
     user = 'root'
     password = 'password'
 }
@@ -41,7 +41,7 @@ task startDb(type: Exec) {
             '-p', "3306:3306",
             "--name", "db",
             "-e", "MYSQL_ROOT_PASSWORD=password",
-            "-e", "MYSQL_DATABASE=db",
+            "-e", "MYSQL_DATABASE=main",
             "-d", "mysql:5.7"
 }
 stopDb.dependsOn(stopDbKill)
@@ -52,7 +52,9 @@ repositories {
 
 dependencies {
     compile('org.springframework.boot:spring-boot-starter-web')
+    compile("org.springframework.boot:spring-boot-starter-data-jpa")
     compile("org.springframework.boot:spring-boot-devtools")
     compile("org.springframework.boot:spring-boot-starter-mustache")
     compile("mysql:mysql-connector-java:6.0.5")
+    compile("org.springframework:spring-jdbc")
 }

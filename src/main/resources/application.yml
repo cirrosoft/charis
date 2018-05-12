@@ -5,6 +5,10 @@ spring:
   mustache:
     suffix: .mustache
   jackson.date-format: mm-dd-yyyy HH:mm:ss
+  datasource:
+    url: jdbc:mysql://localhost:3306/main
+    username: root
+    password: password
 
 build:
   appName: "charis-ballet"

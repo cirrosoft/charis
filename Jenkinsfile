@@ -3,12 +3,14 @@ Instances.steps = this
 Route53.steps = this
 Remote.steps = this
 Docker.steps = this
+Flyway.steps = this
 node {
     def build = [
             appName : "charis-ballet",
             color : "grey",
             buildNumber : BUILD_NUMBER,
             instanceName : "charis-ballet", // dac
+            instanceNameDb : "charis-ballet-db",
             instanceType : "t1.micro",
             instanceImage : "ami-1853ac65",
             instanceSecurityGroup : "ssh-http",
@@ -17,7 +19,8 @@ node {
             commitHashFull : "",  // dac
             dockerName : "",      // dac
             dockerTag : "",       // dac
-            awsCredential : "deployment",
+            awsSSHCredential : "deployment",
+            dbCredential : "deployement-db",
             domainName : "charisballet.com."
     ]
     stage("\u265A Checkout") {
@@ -39,47 +42,62 @@ node {
 
     stage("\u2692 Build") {
         sh(script: "./gradlew assemble")
-        Docker.buildCleanImageAsLatest(build.dockerName, "latest-image.tar", [build.dockerTag])
+        Docker.buildCleanImageAsLatest(build.dockerName, "image.tar", [build.dockerTag])
     }
 
     def instanceIds
     stage("\u26E9 Infrastructure") {
-        if (Instances.instanceExists(build.instanceName)) {
-            instanceIds = Instances.getInstanceIds(build.instanceName)
-        } else {
-            def instanceId = Instances.createInstance(build.instanceName, build.instanceType, build.instanceImage, build.instanceSecurityGroup, build.instanceKeyPair)
-            instanceIds = [instanceId]
-            Instances.waitForInstance(instanceId)
-            def ip = Instances.getInstancePublicIP(instanceId)
-            def commands = [
-                    "uname -a",
-                    "sudo yum update -y",
-                    "sudo yum install docker -y",
-                    "sudo service docker start",
-                    "sudo usermod -a -G docker ec2-user"
-            ]
-            Remote.executeRemoteCommands(build.awsCredential, ip, commands)
-        }
+        instanceIds = ProjectTools.ensureDockerInstance(
+                build.awsSSHCredential,
+                build.instanceName,
+                build.instanceType,
+                build.instanceImage,
+                build.instanceSecurityGroup,
+                build.instanceKeyPair,
+                Docker.installCommands.amazonLinux
+        )
     }
 
-    stage("\u26A1 Deploy") {
-        for (id in instanceIds) {
-            def ip = Instances.getInstancePublicIP(id)
-            Remote.executeRemoteCommands(build.awsCredential, ip, ["rm -rf latest-image.tar"]) // remove previous tar
-            Remote.scp(build.awsCredential, ip, "latest-image.tar", "latest-image.tar") // deploy new tar
-            // Stop and cleanup old containers
-            def runningContainers = Remote.executeRemoteCommands(build.awsCredential, ip, ["docker ps -a -q --filter=\"ancestor=${build.dockerName}:latest\""])
-            runningContainers?.trim()?.eachLine {
-                Remote.executeRemoteCommands(build.awsCredential, ip, ["docker stop ${it}"])
-                Remote.executeRemoteCommands(build.awsCredential, ip, ["docker rm ${it}"])
+    def instanceIdsDb
+    stage("\u26D3 Deploy / Migrate DB") {
+        def ip
+        if (Instances.instanceExists(instanceName)) {
+            // Production Database should already be present.
+            //   If it is not there something else is seriously wrong
+            //   When dealing with backup and migration make sure any
+            //     manual db changes to an instance continue to match the
+            //     name of the db instance in deployment.
+            //     otherwise a new install will occur.
+            instanceIdsDb = Instances.getInstanceIds(build.instanceNameDb)
+            ip = Instances.getInstancePublicIP(instanceIdsDb[0])
+        } else {
+            // This case is only for first startup.
+            instanceIdsDb = ProjectTools.ensureDockerInstance(
+                    build.awsSSHCredential,
+                    build.instanceNameDb,
+                    build.instanceType,
+                    build.instanceImage,
+                    build.instanceSecurityGroup,
+                    build.instanceKeyPair,
+                    Docker.installCommands.amazonLinux
+            )
+            ip = Instances.getInstancePublicIP(instanceIdsDb[0])
+            def dbDockerName = "mysql:5.7"
+            withCredentials([usernamePassword(credentialsId: credentialId, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+                def dbDockerParams = "-p \\\"3306:3306\\\" --name db -e \\\"MYSQL_USER=${DB_USERNAME}\\\" -e \\\"MYSQL_PASSWORD=${DB_PASSWORD}\\\" -e \\\"MYSQL_DATABASE=main\\\" -d"
+                Docker.deployImage(build.awsSSHCredential, ip, dbDockerName, dbDockerParams)
             }
-            // Deploy new container
-            def javaParams = ProjectTools.generateJavaPropertiesString(build)
-            def commands = [
-                    "docker image load -i latest-image.tar",
-                    "sudo docker run -e JAVA_OPTS=\\\"${javaParams}\\\" -d -p \"80:8080\" ${build.dockerName}:latest"
-            ]
-            Remote.executeRemoteCommands(build.awsCredential, ip, commands)
+        }
+        // In this stage we migrate no matter what.
+        // This takes changes from the resource/db/migrations directory and applies them to the deployed db.
+        def url = "jdbc:mysql://${ip}:3306/main"
+        Flyway.migrateWithGradle(build.dbCredential, url)
+    }
+
+    stage("\u26A1 Deploy Application") {
+        for (id in instanceIds) {
+            def ip = Instances.getInstancePublicIP(instanceIds[0])
+            Docker.deployImageFile(build.awsSSHCredential, ip, "image.tar", build.dockerName, build)
         }
         echo "Service Deployed"
     }
@@ -129,6 +147,27 @@ class ProjectTools {
             propsString += "-Dbuild."+k+"="+v+" "
         }
         return propsString
+    }
+
+    static ArrayList<String> ensureDockerInstance(
+            String sshCredentials,
+            String instanceName,
+            String instanceType,
+            String instanceImage,
+            String instanceSecurityGroup,
+            String instanceKeyPair,
+            ArrayList<String> dockerInstall) {
+        def instanceIds
+        if (Instances.instanceExists(instanceName)) {
+            instanceIds = Instances.getInstanceIds(instanceName)
+        } else {
+            def instanceId = Instances.createInstance(instanceName, instanceType, instanceImage, instanceSecurityGroup, instanceKeyPair)
+            instanceIds = [instanceId]
+            Instances.waitForInstance(instanceId)
+            def ip = Instances.getInstancePublicIP(instanceId)
+            Remote.executeRemoteCommands(sshCredentials, ip, dockerInstall)
+        }
+        return instanceIds
     }
 }
 
@@ -299,7 +338,15 @@ class Remote {
 
 class Docker {
     public static def steps
-
+    public static def installCommands = [
+            amazonLinux: [
+                    "uname -a",
+                    "sudo yum update -y",
+                    "sudo yum install docker -y",
+                    "sudo service docker start",
+                    "sudo usermod -a -G docker ec2-user"
+            ]
+    ]
     static void buildCleanImageAsLatest(String imageName, String filename, ArrayList additionalImageTags = []) {
         def tagsString = ""
         for (tag in additionalImageTags) {
@@ -310,13 +357,57 @@ class Docker {
         steps.sh(script: "docker rmi -f `docker images -a -q --filter=reference=\"${imageName}:*\"`")
     }
 
+    static void deployImageFile(
+            String sshCred,
+            String address,
+            String imageFileString,
+            String imageName,
+            ArrayList buildMap
+    ) {
+        Remote.executeRemoteCommands(sshCred, address, ["rm -rf ${imageFileString}"]) // remove previous tar
+        Remote.scp(sshCred, ip, imageFileString, imageFileString) // deploy new tar
+        // Stop and cleanup old containers
+        def runningContainers = Remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageName}:latest\""])
+        runningContainers?.trim()?.eachLine {
+            Remote.executeRemoteCommands(sshCred, address, ["docker stop ${it}"])
+            Remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
+        }
+        // Deploy new container
+        def javaParams = ProjectTools.generateJavaPropertiesString(buildMap)
+        def commands = [
+                "docker image load -i ${imageFileString}",
+                "sudo docker run -e JAVA_OPTS=\\\"${javaParams}\\\" -d -p \"80:8080\" ${imageName}:latest"
+        ]
+        Remote.executeRemoteCommands(sshCred, address, commands)
+    }
+
+    static void deployImage(
+            String sshCred,
+            String address,
+            String imageNameAndTag,
+            String params
+    ) {
+        // Stop and cleanup old containers
+        def runningContainers = Remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageNameAndTag}\""])
+        runningContainers?.trim()?.eachLine {
+            Remote.executeRemoteCommands(sshCred, address, ["docker stop ${it}"])
+            Remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
+        }
+        // Run
+        def commands = [
+                "sudo docker run ${params} ${imageNameAndTag}"
+        ]
+        Remote.executeRemoteCommands(sshCred, address, commands)
+    }
+
 }
 
-class Database {
+class Flyway {
     public static def steps
-
-    static void migrate() {
-        steps.sh(script: """flyway -driver=com.mysql.jdbc.Driver -url=jdbc:mysql://localhost:3306/newline -user=root -password=password -locations=filesystem:sql migrate""", returnStdout: true)
+    static void migrateWithGradle(String dbCredential, url) {
+        steps.withCredentials([usernamePassword(credentialsId: credentialId, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+            steps.sh(script: """./gradlew -Dflyway.user=${steps.DB_USERNAME} -Dflyway.password=${steps.DB_PASSWORD} -Dflyway.url=${url}  flywayMigrate""")
+        }
     }
 }
 
