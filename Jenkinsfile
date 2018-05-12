@@ -83,7 +83,7 @@ node {
             )
             ip = Instances.getInstancePublicIP(instanceIdsDb[0])
             def dbDockerName = "mysql:5.7"
-            withCredentials([usernamePassword(credentialsId: credentialId, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+            withCredentials([usernamePassword(credentialsId: build.dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
                 def dbDockerParams = "-p \\\"3306:3306\\\" --name db -e \\\"MYSQL_USER=${DB_USERNAME}\\\" -e \\\"MYSQL_PASSWORD=${DB_PASSWORD}\\\" -e \\\"MYSQL_DATABASE=main\\\" -d"
                 Docker.deployImage(build.awsSSHCredential, ip, dbDockerName, dbDockerParams)
             }
@@ -97,7 +97,14 @@ node {
     stage("\u26A1 Deploy Application") {
         for (id in instanceIds) {
             def ip = Instances.getInstancePublicIP(instanceIds[0])
-            Docker.deployImageFile(build.awsSSHCredential, ip, "image.tar", build.dockerName, build)
+            Docker.deployImageFile(
+                    build.awsSSHCredential,
+                    ip,
+                    "image.tar",
+                    build.dockerName,
+                    build.dbCredential,
+                    instanceIdsDb[0]
+            )
         }
         echo "Service Deployed"
     }
@@ -362,7 +369,9 @@ class Docker {
             String address,
             String imageFileString,
             String imageName,
-            ArrayList buildMap
+            ArrayList buildMap,
+            String dbCredential = null,
+            String dbAddress
     ) {
         Remote.executeRemoteCommands(sshCred, address, ["rm -rf ${imageFileString}"]) // remove previous tar
         Remote.scp(sshCred, address, imageFileString, imageFileString) // deploy new tar
@@ -374,6 +383,11 @@ class Docker {
         }
         // Deploy new container
         def javaParams = ProjectTools.generateJavaPropertiesString(buildMap)
+        if (dbCredential && dbAddress) {
+            steps.withCredentials([usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+                propsString += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${DB_USERNAME} -Dspring.datasource.password=${DB_PASSWORD}"
+            }
+        }
         def commands = [
                 "docker image load -i ${imageFileString}",
                 "sudo docker run -e JAVA_OPTS=\\\"${javaParams}\\\" -d -p \"80:8080\" ${imageName}:latest"
