@@ -14,6 +14,7 @@ node {
             instanceType : "t1.micro",
             instanceImage : "ami-1853ac65",
             instanceSecurityGroup : "ssh-http",
+            instanceSecurityGroupDb : "ssh-mysql",
             instanceKeyPair : "deployment",
             commitHash : "",      // define after checkout (dac)
             commitHashFull : "",  // dac
@@ -77,7 +78,7 @@ node {
                     build.instanceNameDb,
                     build.instanceType,
                     build.instanceImage,
-                    build.instanceSecurityGroup,
+                    build.instanceSecurityGroupDb,
                     build.instanceKeyPair,
                     Docker.installCommands.amazonLinux
             )
