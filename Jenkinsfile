@@ -371,7 +371,7 @@ class Docker {
             String address,
             String imageFileString,
             String imageName,
-            ArrayList buildMap,
+            LinkedHashMap buildMap,
             String dbCredential = null,
             String dbAddress = null
     ) {
