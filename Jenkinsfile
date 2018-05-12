@@ -60,7 +60,7 @@ node {
     }
 
     def instanceIdsDb
-    stage("\u26D3 Deploy / Migrate DB") {
+    stage("\u26D3 Synchronize DB") {
         def ip
         if (Instances.instanceExists(build.instanceNameDb)) {
             // Production Database should already be present.
@@ -102,8 +102,8 @@ node {
                     build.awsSSHCredential,
                     ip,
                     "image.tar",
-                    build,
                     build.dockerName,
+                    build,
                     build.dbCredential,
                     instanceIdsDb[0]
             )
