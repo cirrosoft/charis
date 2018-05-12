@@ -421,7 +421,7 @@ class Flyway {
     public static def steps
     static void migrateWithGradle(String dbCredential, url) {
         steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
-            steps.timeout(3) {
+            steps.timeout(1) {
                 steps.waitUntil {
                     steps.script {
                         steps.echo "Waiting for response from ${url}"
