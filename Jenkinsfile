@@ -387,7 +387,7 @@ class Docker {
         def javaParams = ProjectTools.generateJavaPropertiesString(buildMap)
         if (dbCredential && dbAddress) {
             steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
-                propsString += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${steps.DB_USERNAME} -Dspring.datasource.password=${steps.DB_PASSWORD}"
+                javaParams += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${steps.DB_USERNAME} -Dspring.datasource.password=${steps.DB_PASSWORD}"
             }
         }
         def commands = [
