@@ -384,8 +384,8 @@ class Docker {
         // Deploy new container
         def javaParams = ProjectTools.generateJavaPropertiesString(buildMap)
         if (dbCredential && dbAddress) {
-            steps.withCredentials([usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
-                propsString += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${DB_USERNAME} -Dspring.datasource.password=${DB_PASSWORD}"
+            steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+                propsString += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${steps.DB_USERNAME} -Dspring.datasource.password=${steps.DB_PASSWORD}"
             }
         }
         def commands = [
@@ -419,7 +419,7 @@ class Docker {
 class Flyway {
     public static def steps
     static void migrateWithGradle(String dbCredential, url) {
-        steps.withCredentials([usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
+        steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
             steps.sh(script: """./gradlew -Dflyway.user=${steps.DB_USERNAME} -Dflyway.password=${steps.DB_PASSWORD} -Dflyway.url=${url}  flywayMigrate""")
         }
     }
