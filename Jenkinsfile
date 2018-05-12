@@ -61,7 +61,7 @@ node {
     def instanceIdsDb
     stage("\u26D3 Deploy / Migrate DB") {
         def ip
-        if (Instances.instanceExists(instanceName)) {
+        if (Instances.instanceExists(build.instanceNameDb)) {
             // Production Database should already be present.
             //   If it is not there something else is seriously wrong
             //   When dealing with backup and migration make sure any
