@@ -20,7 +20,7 @@ node {
             dockerName : "",      // dac
             dockerTag : "",       // dac
             awsSSHCredential : "deployment",
-            dbCredential : "deployement-db",
+            dbCredential : "database",
             domainName : "charisballet.com."
     ]
     stage("\u265A Checkout") {
