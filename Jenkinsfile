@@ -102,6 +102,7 @@ node {
                     build.awsSSHCredential,
                     ip,
                     "image.tar",
+                    build,
                     build.dockerName,
                     build.dbCredential,
                     instanceIdsDb[0]
@@ -372,7 +373,7 @@ class Docker {
             String imageName,
             ArrayList buildMap,
             String dbCredential = null,
-            String dbAddress
+            String dbAddress = null
     ) {
         Remote.executeRemoteCommands(sshCred, address, ["rm -rf ${imageFileString}"]) // remove previous tar
         Remote.scp(sshCred, address, imageFileString, imageFileString) // deploy new tar
