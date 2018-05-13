@@ -408,7 +408,7 @@ class Docker implements Serializable {
             remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
         }
         // Deploy new container
-        def javaParams = projectTools(steps).generateJavaPropertiesString(buildMap)
+        def javaParams = projectTools.generateJavaPropertiesString(buildMap)
         if (dbCredential && dbAddress) {
             steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
                 javaParams += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${steps.DB_USERNAME} -Dspring.datasource.password=${steps.DB_PASSWORD}"
