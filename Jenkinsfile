@@ -1,9 +1,10 @@
-ProjectTools.steps = this
-Instances.steps = this
-Route53.steps = this
-Remote.steps = this
-Docker.steps = this
-Flyway.steps = this
+def projectTools = new ProjectTools(this)
+def instances = new Instances(this)
+def route53 = new Route53(this)
+def remote = new Remote(this)
+def docker = new Docker(this)
+def flyway = new Flyway(this)
+
 node {
     def build = [
             appName : "charis-ballet",
@@ -25,7 +26,7 @@ node {
             domainName : "charisballet.com."
     ]
     stage("\u265A Checkout") {
-        build.color = ProjectTools.getBlueOrGreen()
+        build.color = projectTools.getBlueOrGreen()
         echo "Deployment Color:"
         echo build.color
         echo "Checkout Code Repository"
@@ -43,19 +44,19 @@ node {
 
     stage("\u2692 Build") {
         sh(script: "./gradlew assemble")
-        Docker.buildCleanImageAsLatest(build.dockerName, "image.tar", [build.dockerTag])
+        docker.buildCleanImageAsLatest(build.dockerName, "image.tar", [build.dockerTag])
     }
 
     def instanceIds
     stage("\u26E9 Infrastructure") {
-        instanceIds = ProjectTools.ensureDockerInstance(
+        instanceIds = projectTools.ensureDockerInstance(
                 build.awsSSHCredential,
                 build.instanceName,
                 build.instanceType,
                 build.instanceImage,
                 build.instanceSecurityGroup,
                 build.instanceKeyPair,
-                Docker.installCommands.amazonLinux
+                docker.installCommands.amazonLinux
         )
     }
 
@@ -63,43 +64,43 @@ node {
     def ipDb
     stage("\u26D3 Synchronize DB") {
 
-        if (Instances.instanceExists(build.instanceNameDb)) {
+        if (instances.instanceExists(build.instanceNameDb)) {
             // Production Database should already be present.
             //   If it is not there something else is seriously wrong
             //   When dealing with backup and migration make sure any
             //     manual db changes to an instance continue to match the
             //     name of the db instance in deployment.
             //     otherwise a new install will occur.
-            instanceIdsDb = Instances.getInstanceIds(build.instanceNameDb)
-            ipDb = Instances.getInstancePublicIP(instanceIdsDb[0])
+            instanceIdsDb = instances.getInstanceIds(build.instanceNameDb)
+            ipDb = instances.getInstancePublicIP(instanceIdsDb[0])
         } else {
             // This case is only for first startup.
-            instanceIdsDb = ProjectTools.ensureDockerInstance(
+            instanceIdsDb = projectTools.ensureDockerInstance(
                     build.awsSSHCredential,
                     build.instanceNameDb,
                     build.instanceType,
                     build.instanceImage,
                     build.instanceSecurityGroupDb,
                     build.instanceKeyPair,
-                    Docker.installCommands.amazonLinux
+                    docker.installCommands.amazonLinux
             )
-            ipDb = Instances.getInstancePublicIP(instanceIdsDb[0])
+            ipDb = instances.getInstancePublicIP(instanceIdsDb[0])
             def dbDockerName = "mysql:5.7"
             withCredentials([usernamePassword(credentialsId: build.dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
                 def dbDockerParams = "-p 3306:3306 --name db -e MYSQL_USER=${DB_USERNAME} -e MYSQL_PASSWORD=${DB_PASSWORD} -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} -e MYSQL_DATABASE=main -d"
-                Docker.deployImage(build.awsSSHCredential, ip, dbDockerName, dbDockerParams)
+                docker.deployImage(build.awsSSHCredential, ip, dbDockerName, dbDockerParams)
             }
         }
         // In this stage we migrate no matter what.
         // This takes changes from the resource/db/migrations directory and applies them to the deployed db.
         def url = "jdbc:mysql://${ipDb}:3306/main"
-        Flyway.migrateWithGradle(build.dbCredential, url)
+        flyway.migrateWithGradle(build.dbCredential, url)
     }
 
     stage("\u26A1 Deploy Application") {
         for (id in instanceIds) {
-            def ip = Instances.getInstancePublicIP(instanceIds[0])
-            Docker.deployImageFile(
+            def ip = instances.getInstancePublicIP(instanceIds[0])
+            docker.deployImageFile(
                     build.awsSSHCredential,
                     ip,
                     "image.tar",
@@ -115,23 +116,31 @@ node {
     def ip
     stage("\u267A Integration Test") {
         for (id in instanceIds) {
-            ip = Instances.getInstancePublicIP(id)
-            Remote.waitForUrlSuccess("http://${ip}/health")
+            ip = instances.getInstancePublicIP(id)
+            remote.waitForUrlSuccess("http://${ip}/health")
         }
     }
 
     stage("\u21C6 Crossover") {
-        def zoneId = Route53.getHostedZoneId(build.domainName)
-        Route53.createRecord(zoneId, build.domainName, ip)
-        Route53.createRecord(zoneId, build.color+"."+build.domainName, ip)
+        def zoneId = route53.getHostedZoneId(build.domainName)
+        route53.createRecord(zoneId, build.domainName, ip)
+        route53.createRecord(zoneId, build.color+"."+build.domainName, ip)
     }
 
 
 }
 
-class ProjectTools {
-    public static def steps
-    static ArrayList getSuccessfullBuilds() {
+class ProjectTools implements Serializable {
+    public def steps
+    Instances instances
+    Remote remote
+    ProjectTools(inputStep) {
+        steps = inputStep
+        instances = new Instances(steps)
+        remote = new Remote(steps)
+    }
+
+    ArrayList getSuccessfullBuilds() {
         def b = steps.currentBuild
         def builds = []
         while (b != null) {
@@ -142,7 +151,7 @@ class ProjectTools {
         }
         return builds;
     }
-    static String getBlueOrGreen() {
+    String getBlueOrGreen() {
         def builds = getSuccessfullBuilds()
         def count = builds.size()
         if (count % 2 == 0) {
@@ -151,7 +160,7 @@ class ProjectTools {
             return "green"
         }
     }
-    static String generateJavaPropertiesString(Map props) {
+    String generateJavaPropertiesString(Map props) {
         def propsString = ""
         props.each{ k, v ->
             propsString += "-Dbuild."+k+"="+v+" "
@@ -159,7 +168,7 @@ class ProjectTools {
         return propsString
     }
 
-    static ArrayList<String> ensureDockerInstance(
+    ArrayList<String> ensureDockerInstance(
             String sshCredentials,
             String instanceName,
             String instanceType,
@@ -168,23 +177,25 @@ class ProjectTools {
             String instanceKeyPair,
             ArrayList<String> dockerInstall) {
         def instanceIds
-        if (Instances.instanceExists(instanceName)) {
-            instanceIds = Instances.getInstanceIds(instanceName)
+        if (instances.instanceExists(instanceName)) {
+            instanceIds = instances.getInstanceIds(instanceName)
         } else {
-            def instanceId = Instances.createInstance(instanceName, instanceType, instanceImage, instanceSecurityGroup, instanceKeyPair)
+            def instanceId = instances.createInstance(instanceName, instanceType, instanceImage, instanceSecurityGroup, instanceKeyPair)
             instanceIds = [instanceId]
-            Instances.waitForInstance(instanceId)
-            def ip = Instances.getInstancePublicIP(instanceId)
-            Remote.executeRemoteCommands(sshCredentials, ip, dockerInstall)
+            instances.waitForInstance(instanceId)
+            def ip = instances.getInstancePublicIP(instanceId)
+            remote.executeRemoteCommands(sshCredentials, ip, dockerInstall)
         }
         return instanceIds
     }
 }
 
 
-class Instances {
-    public static def steps
-    static String createInstance(String nameTag, String type, String ami, String securityGroup, String keyPairName) {
+class Instances implements Serializable {
+    public def steps
+    Instances(inputStep) {steps = inputStep}
+
+    String createInstance(String nameTag, String type, String ami, String securityGroup, String keyPairName) {
         nameTag = nameTag.replaceAll(' ', '-')
         steps.sh(script: """aws ec2 run-instances --image-id ${ami} --count 1 --instance-type ${type} --key-name ${keyPairName} --security-groups ${securityGroup} --tag-specifications ResourceType=instance,Tags=[\\{Key=Name,Value=${nameTag}\\}] | tee instance.out""", returnStdout: true).trim()
         def result = steps.readFile 'instance.out'
@@ -196,7 +207,7 @@ class Instances {
         return instanceId
     }
 
-    static String[] getInstanceIds(nameTag) {
+    String[] getInstanceIds(nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
 
         steps.sh(script: """aws ec2 describe-instances --filters 'Name=tag:Name,Values=${nameTag}' 'Name=instance-state-name,Values=running' | tee instances.out""", returnStdout: true)
@@ -212,7 +223,7 @@ class Instances {
         return instances
     }
 
-    static boolean instanceExists(String nameTag) {
+    boolean instanceExists(String nameTag) {
         def instances = this.getInstanceIds(nameTag)
         if (instances) {
             return true
@@ -221,11 +232,11 @@ class Instances {
         }
     }
 
-    static void deleteInstance(String id) {
+    void deleteInstance(String id) {
         steps.sh(script: """aws ec2 terminate-instances --instance-ids ${id}""")
     }
 
-    static void deleteInstances(String nameTag) {
+    void deleteInstances(String nameTag) {
         nameTag = nameTag.replaceAll(" ", "-")
         def instances = this.getInstanceIds(nameTag)
         for (id in instances) {
@@ -233,26 +244,28 @@ class Instances {
         }
     }
 
-    static void waitForInstance(String id) {
+    void waitForInstance(String id) {
         steps.echo "Waiting for instance to start..."
         steps.sh(script: """aws ec2 wait instance-running --instance-ids ${id}""")
         steps.echo "Waiting for instance to become available to the network..."
         steps.sh(script: """aws ec2 wait instance-status-ok --instance-ids ${id}""")
     }
 
-    static String getInstancePublicIP(String id) {
+    String getInstancePublicIP(String id) {
         return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PublicIpAddress | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true).trim()
     }
 
-    static String getInstancePrivateIP(String id) {
+    String getInstancePrivateIP(String id) {
         return steps.sh(script: """aws ec2 describe-instances --instance-ids ${id} | grep PrivateIpAddress  | head -1 | awk -F ":" '{print \$2}' | sed 's/[",]//g'""", returnStdout: true).trim()
     }
 
 }
 
-class Route53 {
-    public static def steps
-    static String getHostedZoneId(String domainName) {
+class Route53 implements Serializable {
+    public def steps
+    Route53(inputStep) {steps = inputStep}
+
+    String getHostedZoneId(String domainName) {
         steps.sh(script: """aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="${domainName}")' | tee zones.out""", returnStdout: true)
         def result = steps.readFile 'zones.out'
         steps.sh """rm zones.out"""
@@ -264,7 +277,7 @@ class Route53 {
         }
         return null
     }
-    static String createRecord(String zoneId, String domainName, String ip) {
+    String createRecord(String zoneId, String domainName, String ip) {
         def record = """
         {
             "Comment": "A new record set for the zone.",
@@ -303,9 +316,11 @@ class Route53 {
     }
 }
 
-class Remote {
-    public static def steps
-    static String executeRemoteCommands(String credentialId, String address, ArrayList commands) {
+class Remote implements Serializable {
+    public def steps
+    Remote(inputStep) {steps = inputStep}
+
+    String executeRemoteCommands(String credentialId, String address, ArrayList commands) {
         def lastResult = ""
         address = address.trim()
         steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
@@ -323,7 +338,7 @@ class Remote {
         return lastResult
     }
 
-    static void scp(String credentialId, String address, String fromPath, String toPath) {
+    void scp(String credentialId, String address, String fromPath, String toPath) {
         address = address.trim()
         steps.withCredentials([steps.sshUserPrivateKey(credentialsId: credentialId, keyFileVariable: 'SSH_KEYFILE', passphraseVariable: 'SSH_PASSWORD', usernameVariable: 'SSH_USERNAME')]) {
             steps.sh """
@@ -332,7 +347,7 @@ class Remote {
         }
     }
 
-    static void waitForUrlSuccess(String url) {
+    void waitForUrlSuccess(String url) {
         steps.timeout(5) {
             steps.waitUntil {
                 steps.script {
@@ -346,9 +361,17 @@ class Remote {
 
 }
 
-class Docker {
-    public static def steps
-    public static def installCommands = [
+class Docker implements Serializable {
+    public def steps
+    ProjectTools projectTools
+    Remote remote
+    Docker(inputStep) {
+        steps = inputStep
+        projectTools = new ProjectTools(steps)
+        remote = new Remote(steps)
+    }
+
+    public def installCommands = [
             amazonLinux: [
                     "uname -a",
                     "sudo yum update -y",
@@ -357,7 +380,7 @@ class Docker {
                     "sudo usermod -a -G docker ec2-user"
             ]
     ]
-    static void buildCleanImageAsLatest(String imageName, String filename, ArrayList additionalImageTags = []) {
+    void buildCleanImageAsLatest(String imageName, String filename, ArrayList additionalImageTags = []) {
         def tagsString = ""
         for (tag in additionalImageTags) {
             tagsString += "-t " + imageName + ":" + tag + " "
@@ -367,7 +390,7 @@ class Docker {
         steps.sh(script: "docker rmi -f `docker images -a -q --filter=reference=\"${imageName}:*\"`")
     }
 
-    static void deployImageFile(
+    void deployImageFile(
             String sshCred,
             String address,
             String imageFileString,
@@ -376,16 +399,16 @@ class Docker {
             String dbCredential = null,
             String dbAddress = null
     ) {
-        Remote.executeRemoteCommands(sshCred, address, ["rm -rf ${imageFileString}"]) // remove previous tar
-        Remote.scp(sshCred, address, imageFileString, imageFileString) // deploy new tar
+        remote.executeRemoteCommands(sshCred, address, ["rm -rf ${imageFileString}"]) // remove previous tar
+        remote.scp(sshCred, address, imageFileString, imageFileString) // deploy new tar
         // Stop and cleanup old containers
-        def runningContainers = Remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageName}:latest\""])
+        def runningContainers = remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageName}:latest\""])
         runningContainers?.trim()?.eachLine {
-            Remote.executeRemoteCommands(sshCred, address, ["docker stop ${it}"])
-            Remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
+            remote.executeRemoteCommands(sshCred, address, ["docker stop ${it}"])
+            remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
         }
         // Deploy new container
-        def javaParams = ProjectTools.generateJavaPropertiesString(buildMap)
+        def javaParams = projectTools(steps).generateJavaPropertiesString(buildMap)
         if (dbCredential && dbAddress) {
             steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
                 javaParams += "-Dspring.datasource.url=${dbAddress} -Dspring.datasource.username=${steps.DB_USERNAME} -Dspring.datasource.password=${steps.DB_PASSWORD}"
@@ -395,33 +418,34 @@ class Docker {
                 "docker image load -i ${imageFileString}",
                 "sudo docker run -e JAVA_OPTS=\\\"${javaParams}\\\" -d -p \"80:8080\" ${imageName}:latest"
         ]
-        Remote.executeRemoteCommands(sshCred, address, commands)
+        remote.executeRemoteCommands(sshCred, address, commands)
     }
 
-    static void deployImage(
+    void deployImage(
             String sshCred,
             String address,
             String imageNameAndTag,
             String params
     ) {
         // Stop and cleanup old containers
-        def runningContainers = Remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageNameAndTag}\""])
+        def runningContainers = remote.executeRemoteCommands(sshCred, address, ["docker ps -a -q --filter=\"ancestor=${imageNameAndTag}\""])
         runningContainers?.trim()?.eachLine {
-            Remote.executeRemoteCommands(sshCred, address, ["docker stop ${it}"])
-            Remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
+            remote.executeRemoteCommands(sshCred, address, ["docker stop ${it}"])
+            remote.executeRemoteCommands(sshCred, address, ["docker rm ${it}"])
         }
         // Run
         def commands = [
                 "sudo docker run ${params} ${imageNameAndTag}"
         ]
-        Remote.executeRemoteCommands(sshCred, address, commands)
+        remote.executeRemoteCommands(sshCred, address, commands)
     }
 
 }
 
-class Flyway {
-    public static def steps
-    static void migrateWithGradle(String dbCredential, url) {
+class Flyway implements Serializable {
+    public def steps
+    Flyway(inputStep) {steps = inputStep}
+    void migrateWithGradle(String dbCredential, url) {
         steps.withCredentials([steps.usernamePassword(credentialsId: dbCredential, usernameVariable: 'DB_USERNAME', passwordVariable: 'DB_PASSWORD')]) {
             steps.timeout(1) {
                 steps.waitUntil {
