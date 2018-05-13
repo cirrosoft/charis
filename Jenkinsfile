@@ -1,4 +1,4 @@
-@Library("jenkins-pipeline") _
+@Library("pipeline-library") _
 import org.cirrosoft.pipeline.*
 
 def projectTools = new ProjectTools(this)
