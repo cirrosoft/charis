@@ -1,0 +1,29 @@
+
+step "Unit Test", {
+
+}
+
+step "Build", {
+
+}
+
+step "Infrastucture", {
+
+}
+
+step "Synchronize DB", {
+
+}
+
+step "Deploy Application", {
+
+}
+
+step "Integration Test", {
+
+}
+
+step "Crossover", {
+
+}
+
